@@ -19,6 +19,7 @@ def evaluate(ast, environment):
             else:
                 environment = environment.get("$parent", None)
         return None, False
+
     if ast["tag"] == "if":
         condition, _ = evaluate(ast["condition"], environment)
         if condition:
@@ -28,11 +29,18 @@ def evaluate(ast, environment):
             value, _ = evaluate(ast["else"], environment)
             return value, False
 
+    if ast["tag"] == "while":
+        condition, _ = evaluate(ast["condition"], environment)
+        while condition:
+            evaluate(ast["do"], environment)
+            condition, _ = evaluate(ast["condition"], environment)
+        return None, False
+
     if ast["tag"] == "print":
         argument = ast.get("arguments", None)
-        while argument:
+        while(argument):
             value, _ = evaluate(argument, environment)
-            print(value, end=" ")
+            print(value, end = " ")
             argument = argument.get("next", None)
         print()
         return None, False
@@ -41,10 +49,19 @@ def evaluate(ast, environment):
         value, returning = evaluate(ast["statement"], environment)
         if ast.get("next") and not returning:
             value, returning = evaluate(ast["next"], environment)
+        return value, returning
         # if returning:
         #     return value, returning
         # else:
         #     return None, False
+
+    if ast["tag"] == "not":
+        value, _ = evaluate(ast["value"], environment)
+        if value:
+            value = 0
+        else:
+            value = 1
+        return value, False
 
     if ast["tag"] == "+":
         left_value, _ = evaluate(ast["left"], environment)
@@ -62,20 +79,50 @@ def evaluate(ast, environment):
         left_value, _ = evaluate(ast["left"], environment)
         right_value, _ = evaluate(ast["right"], environment)
         return left_value / right_value, False
+    if ast["tag"] == "<":
+        left_value, _ = evaluate(ast["left"], environment)
+        right_value, _ = evaluate(ast["right"], environment)
+        return int(left_value < right_value), False
+    if ast["tag"] == ">":
+        left_value, _ = evaluate(ast["left"], environment)
+        right_value, _ = evaluate(ast["right"], environment)
+        return int(left_value > right_value), False
+    if ast["tag"] == "<=":
+        left_value, _ = evaluate(ast["left"], environment)
+        right_value, _ = evaluate(ast["right"], environment)
+        return int(left_value <= right_value), False
+    if ast["tag"] == ">=":
+        left_value, _ = evaluate(ast["left"], environment)
+        right_value, _ = evaluate(ast["right"], environment)
+        return int(left_value >= right_value), False
+    if ast["tag"] == "==":
+        left_value, _ = evaluate(ast["left"], environment)
+        right_value, _ = evaluate(ast["right"], environment)
+        return int(left_value == right_value), False
+    if ast["tag"] == "!=":
+        left_value, _ = evaluate(ast["left"], environment)
+        right_value, _ = evaluate(ast["right"], environment)
+        return int(left_value != right_value), False
+    if ast["tag"] == "&&":
+        left_value, _ = evaluate(ast["left"], environment)
+        right_value, _ = evaluate(ast["right"], environment)
+        return int(left_value and right_value), False
+    if ast["tag"] == "||":
+        left_value, _ = evaluate(ast["left"], environment)
+        right_value, _ = evaluate(ast["right"], environment)
+        return int(left_value or right_value), False
     if ast["tag"] == "negate":
         value, _ = evaluate(ast["value"], environment)
         return -value, False
     if ast["tag"] == "=":
         assert (
-            ast["target"]["tag"] == "<identifier>"
+            ast["target"]["tag"] == "identifier"
         ), f"ERROR: Expecting identifier in assignment statement."
         identifier = ast["target"]["value"]
         assert ast["value"], f"ERROR: Expecting expression in assignment statement."
         value, _ = evaluate(ast["value"], environment)
         environment[identifier] = value
         return None, False
-    raise Exception(f"Unknown operation: {ast['tag']}")
-
     raise Exception(f"Unknown token in AST: {ast['tag']}")
 
 
@@ -110,7 +157,6 @@ def test_evaluate_single_value():
     equals("x", {"y": 3.0, "$parent": {"x": 4.0}}, 4.0)
     equals("x", {"y": 3.0, "z": 8.0, "$parent": {"y": 4.0, "$parent": {"x": 5.5}}}, 5.5)
 
-
 def test_evaluate_print_statement():
     print("test evaluate print_statement.")
     equals("print()", {}, None, None)
@@ -122,6 +168,12 @@ def test_evaluate_if_statement():
     print("test evaluate if statement.")
     equals("if(1) print(1111)", {}, None, None)
     equals("if(0) print(1111) else print(2222)", {}, None, None)
+
+
+def test_evaluate_while_statement():
+    print("test evaluate while statement.")
+    equals("while(0) print(145)", {}, None, None)
+    equals("while(i) i = i-1", {"i": 4}, None, {"i": 0})
 
 
 def test_evaluate_addition():
@@ -180,6 +232,7 @@ if __name__ == "__main__":
     test_evaluate_unary_negation()
     test_evaluate_complex_expression()
     test_evaluate_if_statement()
-    test_evaluate_print_statement()
+    test_evaluate_while_statement()
+    test_evaluate_print_statement()    
     test_evaluate_block_statement()
     print("done")
